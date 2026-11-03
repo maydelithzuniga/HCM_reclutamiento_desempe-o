@@ -43,7 +43,7 @@ functions:
         Resource: !GetAtt RecruitmentTable.Arn
 
   listVacancies:
-    handler: handlers/getters.listVacancies
+    handler: handlers/queries.listVacancies
     events:
       - http:
           path: /vacancies
@@ -99,7 +99,7 @@ functions:
         Resource: !GetAtt RecruitmentTable.Arn
 
   listCandidates:
-    handler: handlers/getters.listCandidates
+    handler: handlers/queries.listCandidates
     events:
       - http:
           path: /candidates
@@ -113,7 +113,7 @@ functions:
           - !Join ["/", [!GetAtt RecruitmentTable.Arn, "index", "GSI1"]]
 
   getCandidate:
-    handler: handlers/getters.getCandidate
+    handler: handlers/queries.getCandidate
     events:
       - http:
           path: /candidates/{candidateId}
@@ -125,7 +125,7 @@ functions:
         Resource: !GetAtt RecruitmentTable.Arn
 
   getDocumentUrl:
-    handler: handlers/getters.getDocumentUrl
+    handler: handlers/queries.getDocumentUrl
     events:
       - http:
           path: /candidates/{candidateId}/documents/{docKey}

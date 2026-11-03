@@ -9,6 +9,7 @@ const {
 
 const TENANT_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const RESERVED = [":__pk", ":__sk", ":__sk2", ":__g", ":__tid"];
+const TENANT_FIELDS = ["tenantId", "tenant_id", "tenant", "custom:tenant_id"];
 
 class TenantViolationError extends Error {
   constructor(message, details = {}) {
@@ -208,4 +209,46 @@ const createTenantDb = (tenantId, { client, table }) => {
   };
 };
 
-module.exports = { createTenantDb, tenantFromEvent, TenantViolationError };
+const findTenantClaims = (obj, source) => {
+  const found = [];
+  if (!obj || typeof obj !== "object") return found;
+  for (const f of TENANT_FIELDS) {
+    if (obj[f] !== undefined && obj[f] !== null && obj[f] !== "") found.push({ source, field: f, value: String(obj[f]) });
+  }
+  return found;
+};
+
+const parseBodySafe = (event) => {
+  if (!event?.body) return null;
+  try {
+    const raw = event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const assertRequestTenant = (event, tenantId) => {
+  if (typeof tenantId !== "string" || !TENANT_RE.test(tenantId))
+    throw new TenantViolationError("tenantId del token inválido", { tenantId });
+
+  const headers = Object.fromEntries(Object.entries(event?.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+  const body = parseBodySafe(event);
+
+  const claims = [
+    ...(Array.isArray(body) ? body.flatMap((b, i) => findTenantClaims(b, `body[${i}]`)) : findTenantClaims(body, "body")),
+    ...findTenantClaims(event?.pathParameters, "path"),
+    ...findTenantClaims(event?.queryStringParameters, "query"),
+  ];
+
+  if (headers["x-tenant-id"] !== undefined) claims.push({ source: "header", field: "x-tenant-id", value: String(headers["x-tenant-id"]) });
+
+  const mismatches = claims.filter((c) => c.value !== tenantId);
+  if (mismatches.length)
+    throw new TenantViolationError("El tenant de la solicitud no coincide con el token JWT", { tenantId, mismatches });
+
+  return true;
+};
+
+module.exports = { createTenantDb, tenantFromEvent, assertRequestTenant, TenantViolationError };
