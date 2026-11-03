@@ -1,0 +1,213 @@
+service: hcm-performance
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-offline
+
+custom:
+  senderEmail: ${param:senderEmail, 'tu-correo-verificado@gmail.com'}
+
+package:
+  patterns:
+    - "!tests/**"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 15
+  logRetentionInDays: 14
+  environment:
+    PERFORMANCE_TABLE: ms-performance-table-${sls:stage}
+    PERFORMANCE_TOPIC_ARN: !Ref PerformanceTopic
+    SENDER_EMAIL: ${self:custom.senderEmail}
+    TZ_OFFSET_HOURS: "-5"
+
+functions:
+  createGoal:
+    handler: handlers/createGoal.main
+    events:
+      - http:
+          path: /goals
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:PutItem
+        Resource: !GetAtt PerformanceTable.Arn
+      - Effect: Allow
+        Action: sns:Publish
+        Resource: !Ref PerformanceTopic
+
+  updateGoal:
+    handler: handlers/updateGoal.main
+    events:
+      - http:
+          path: /goals/{employeeId}/{goalId}
+          method: patch
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt PerformanceTable.Arn
+
+  dispatchGoalReminders:
+    handler: handlers/createGoal.dispatchReminders
+    timeout: 300
+    events:
+      - schedule:
+          rate: rate(1 hour)
+          enabled: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:Query
+        Resource: !Join ["/", [!GetAtt PerformanceTable.Arn, "index", "GSI1"]]
+      - Effect: Allow
+        Action: dynamodb:UpdateItem
+        Resource: !GetAtt PerformanceTable.Arn
+      - Effect: Allow
+        Action: sns:Publish
+        Resource: !Ref PerformanceTopic
+
+  notifyGoal:
+    handler: handlers/createGoal.notify
+    timeout: 30
+    events:
+      - sqs:
+          arn: !GetAtt GoalNotifyQueue.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+    iamRoleStatements:
+      - Effect: Allow
+        Action: ses:SendEmail
+        Resource: "*"
+
+  submitEvaluation:
+    handler: handlers/submitEvaluation.main
+    events:
+      - http:
+          path: /evaluations
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt PerformanceTable.Arn
+      - Effect: Allow
+        Action: sns:Publish
+        Resource: !Ref PerformanceTopic
+
+  getEmployeePerformance:
+    handler: handlers/getEmployeePerformance.main
+    events:
+      - http:
+          path: /evaluations/employee/{employeeId}
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:Query
+        Resource: !GetAtt PerformanceTable.Arn
+
+resources:
+  Resources:
+    PerformanceTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PERFORMANCE_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    PerformanceTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${sls:stage}-events
+
+    GoalNotifyDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-notify-dlq
+        MessageRetentionPeriod: 1209600
+
+    GoalNotifyQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-notify
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt GoalNotifyDLQ.Arn
+          maxReceiveCount: 3
+
+    GoalNotifyQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref GoalNotifyQueue
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt GoalNotifyQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref PerformanceTopic
+
+    GoalNotifySubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref PerformanceTopic
+        Protocol: sqs
+        Endpoint: !GetAtt GoalNotifyQueue.Arn
+        RawMessageDelivery: true
+        FilterPolicy:
+          eventType:
+            - goal.assigned
+            - goal.reminder
+            - evaluation.completed
+
+  Outputs:
+    PerformanceTopicArn:
+      Value: !Ref PerformanceTopic
+      Export:
+        Name: ${self:service}-${sls:stage}-topic-arn
+    PerformanceTableName:
+      Value: !Ref PerformanceTable
+      Export:
+        Name: ${self:service}-${sls:stage}-table-name
+    GoalNotifyDLQUrl:
+      Value: !Ref GoalNotifyDLQ

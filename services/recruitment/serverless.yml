@@ -1,0 +1,323 @@
+service: hcm-recruitment
+
+frameworkVersion: "3"
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-offline
+
+custom:
+  bucket: ${param:storageBucket, 'hcm-app-storage'}
+  senderEmail: ${param:senderEmail, 'tu-correo-verificado@gmail.com'}
+  bucketArn: arn:aws:s3:::${self:custom.bucket}
+
+package:
+  patterns:
+    - "!tests/**"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 15
+  logRetentionInDays: 14
+  environment:
+    RECRUITMENT_TABLE: ms-recruitment-table-${sls:stage}
+    STORAGE_BUCKET: ${self:custom.bucket}
+    RECRUITMENT_TOPIC_ARN: !Ref RecruitmentTopic
+    SENDER_EMAIL: ${self:custom.senderEmail}
+
+functions:
+  createVacancy:
+    handler: handlers/createVacancy.main
+    events:
+      - http:
+          path: /vacancies
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:PutItem
+        Resource: !GetAtt RecruitmentTable.Arn
+
+  listVacancies:
+    handler: handlers/getters.listVacancies
+    events:
+      - http:
+          path: /vacancies
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:Query
+        Resource: !GetAtt RecruitmentTable.Arn
+
+  getVacancy:
+    handler: handlers/queries.getVacancy
+    events:
+      - http:
+          path: /vacancies/{vacancyId}
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:GetItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: dynamodb:Query
+        Resource: !Join ["/", [!GetAtt RecruitmentTable.Arn, "index", "GSI1"]]
+
+  updateVacancy:
+    handler: handlers/updateVacancy.main
+    events:
+      - http:
+          path: /vacancies/{vacancyId}
+          method: patch
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt RecruitmentTable.Arn
+
+  createCandidate:
+    handler: handlers/createCandidate.main
+    events:
+      - http:
+          path: /candidates
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:ConditionCheckItem
+        Resource: !GetAtt RecruitmentTable.Arn
+
+  listCandidates:
+    handler: handlers/getters.listCandidates
+    events:
+      - http:
+          path: /candidates
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:Query
+        Resource:
+          - !GetAtt RecruitmentTable.Arn
+          - !Join ["/", [!GetAtt RecruitmentTable.Arn, "index", "GSI1"]]
+
+  getCandidate:
+    handler: handlers/getters.getCandidate
+    events:
+      - http:
+          path: /candidates/{candidateId}
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:GetItem
+        Resource: !GetAtt RecruitmentTable.Arn
+
+  getDocumentUrl:
+    handler: handlers/getters.getDocumentUrl
+    events:
+      - http:
+          path: /candidates/{candidateId}/documents/{docKey}
+          method: get
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: dynamodb:GetItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: s3:GetObject
+        Resource: ${self:custom.bucketArn}/*/recruitment/*
+      - Effect: Allow
+        Action: s3:ListBucket
+        Resource: ${self:custom.bucketArn}
+
+  certificateUploadUrl:
+    handler: handlers/createCandidate.uploadUrl
+    events:
+      - http:
+          path: /candidates/{candidateId}/certificates/{certKey}/upload-url
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: s3:PutObject
+        Resource: ${self:custom.bucketArn}/*/recruitment/certificates/*
+
+  submitCandidate:
+    handler: handlers/createCandidate.submit
+    events:
+      - http:
+          path: /candidates/{candidateId}/submit
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: s3:GetObject
+        Resource: ${self:custom.bucketArn}/*/recruitment/*
+      - Effect: Allow
+        Action: s3:ListBucket
+        Resource: ${self:custom.bucketArn}
+      - Effect: Allow
+        Action: sns:Publish
+        Resource: !Ref RecruitmentTopic
+
+  uploadResumePresignedUrl:
+    handler: handlers/uploadResumePresignedUrl.main
+    events:
+      - http:
+          path: /candidates/{candidateId}/resume/upload-url
+          method: post
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: s3:PutObject
+        Resource: ${self:custom.bucketArn}/*/recruitment/resumes/*.pdf
+
+  updateStage:
+    handler: handlers/updateStage.main
+    events:
+      - http:
+          path: /candidates/{candidateId}/stage
+          method: patch
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:UpdateItem
+        Resource: !GetAtt RecruitmentTable.Arn
+      - Effect: Allow
+        Action: sns:Publish
+        Resource: !Ref RecruitmentTopic
+
+  notifyStageChange:
+    handler: handlers/notifyStageChange.main
+    timeout: 30
+    events:
+      - sqs:
+          arn: !GetAtt NotifyQueue.Arn
+          batchSize: 10
+          functionResponseType: ReportBatchItemFailures
+    iamRoleStatements:
+      - Effect: Allow
+        Action: ses:SendEmail
+        Resource: "*"
+
+resources:
+  Resources:
+    RecruitmentTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.RECRUITMENT_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+    RecruitmentTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${sls:stage}-events
+
+    NotifyDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-notify-dlq
+        MessageRetentionPeriod: 1209600
+
+    NotifyQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-notify
+        VisibilityTimeout: 180
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt NotifyDLQ.Arn
+          maxReceiveCount: 3
+
+    NotifyQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref NotifyQueue
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: sns.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt NotifyQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref RecruitmentTopic
+
+    NotifySubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref RecruitmentTopic
+        Protocol: sqs
+        Endpoint: !GetAtt NotifyQueue.Arn
+        RawMessageDelivery: true
+        FilterPolicy:
+          eventType:
+            - candidate.stage_changed
+
+  Outputs:
+    RecruitmentTopicArn:
+      Value: !Ref RecruitmentTopic
+      Export:
+        Name: ${self:service}-${sls:stage}-topic-arn
+    RecruitmentTableName:
+      Value: !Ref RecruitmentTable
+      Export:
+        Name: ${self:service}-${sls:stage}-table-name
+    NotifyDLQUrl:
+      Value: !Ref NotifyDLQ

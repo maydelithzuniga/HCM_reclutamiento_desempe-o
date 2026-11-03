@@ -1,0 +1,23 @@
+{
+  "name": "hcm-performance",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "serverless deploy",
+    "offline": "serverless offline",
+    "remind": "serverless invoke -f dispatchGoalReminders",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "@aws-sdk/client-sns": "^3.600.0",
+    "@aws-sdk/client-sesv2": "^3.600.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "serverless": "^3.38.0",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-offline": "^13.3.0"
+  }
+}
