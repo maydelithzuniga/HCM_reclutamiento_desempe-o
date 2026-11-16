@@ -1,7 +1,7 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const sns = new SNSClient({});
@@ -119,7 +119,7 @@ module.exports.main = async (event, context) => {
     }
 
     const now = new Date().toISOString();
-    const changedBy = event.requestContext?.authorizer?.claims?.email || event.requestContext?.authorizer?.jwt?.claims?.email || "system";
+    const changedBy = authFromEvent(event).email || "system";
     const entry = { from: fromStage, to: toStage, at: now, by: changedBy, note: note ? note.trim() : null };
 
     const updated = await ddb.send(
