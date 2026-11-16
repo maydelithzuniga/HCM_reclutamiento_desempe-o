@@ -9,6 +9,11 @@ custom:
   bucket: ${param:storageBucket, 'hcm-app-storage'}
   senderEmail: ${param:senderEmail, 'tu-correo-verificado@gmail.com'}
   bucketArn: arn:aws:s3:::${self:custom.bucket}
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:${param:authorizerFn, 'hcm-auth-dev-authorizer'}
+    type: request          # "token" si tu authorizer es de tipo TOKEN
+    identitySource: method.request.header.Authorization
+    resultTtlInSeconds: 300
 
 package:
   patterns:
@@ -38,6 +43,7 @@ functions:
           path: /vacancies
           method: post
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   listVacancies:
     handler: handlers/queries.listVacancies
@@ -46,6 +52,7 @@ functions:
           path: /vacancies
           method: get
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   getVacancy:
     handler: handlers/queries.getVacancy
@@ -54,6 +61,7 @@ functions:
           path: /vacancies/{vacancyId}
           method: get
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   updateVacancy:
     handler: handlers/updateVacancy.main
@@ -62,6 +70,7 @@ functions:
           path: /vacancies/{vacancyId}
           method: patch
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   createCandidate:
     handler: handlers/createCandidate.main
@@ -70,6 +79,7 @@ functions:
           path: /candidates
           method: post
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   listCandidates:
     handler: handlers/queries.listCandidates
@@ -78,6 +88,7 @@ functions:
           path: /candidates
           method: get
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   getCandidate:
     handler: handlers/queries.getCandidate
@@ -86,6 +97,7 @@ functions:
           path: /candidates/{candidateId}
           method: get
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   getDocumentUrl:
     handler: handlers/queries.getDocumentUrl
@@ -94,6 +106,7 @@ functions:
           path: /candidates/{candidateId}/documents/{docKey}
           method: get
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   certificateUploadUrl:
     handler: handlers/createCandidate.uploadUrl
@@ -102,6 +115,7 @@ functions:
           path: /candidates/{candidateId}/certificates/{certKey}/upload-url
           method: post
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   submitCandidate:
     handler: handlers/createCandidate.submit
@@ -110,6 +124,7 @@ functions:
           path: /candidates/{candidateId}/submit
           method: post
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   uploadResumePresignedUrl:
     handler: handlers/uploadResumePresignedUrl.main
@@ -118,6 +133,7 @@ functions:
           path: /candidates/{candidateId}/resume/upload-url
           method: post
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   updateStage:
     handler: handlers/updateStage.main
@@ -126,6 +142,7 @@ functions:
           path: /candidates/{candidateId}/stage
           method: patch
           cors: true
+          authorizer: ${self:custom.authorizer}
 
   notifyStageChange:
     handler: handlers/notifyStageChange.main
