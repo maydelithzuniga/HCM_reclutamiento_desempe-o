@@ -1,6 +1,6 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 const TABLE = process.env.PERFORMANCE_TABLE;
@@ -224,7 +224,7 @@ module.exports.main = async (event, context) => {
       nextReminderAt = null;
     }
 
-    const by = claims.email || "system";
+    const by = authFromEvent(event).email || "system";
     const sets = ["updatedAt = :now", "updatedBy = :by"];
     const removes = [];
     const names = {};
