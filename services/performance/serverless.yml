@@ -3,7 +3,6 @@ service: hcm-performance
 frameworkVersion: "3"
 
 plugins:
-  - serverless-iam-roles-per-function
   - serverless-offline
 
 custom:
