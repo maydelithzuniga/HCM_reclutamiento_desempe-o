@@ -27,18 +27,7 @@ const res = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const getTenantId = (event) => {
-  const auth = event.requestContext?.authorizer || {};
-  const claims = auth.claims || auth.jwt?.claims || {};
-  const fromToken = claims["custom:tenant_id"];
-  if (fromToken) return fromToken;
-
-  if (process.env.IS_OFFLINE) {
-    const h = event.headers || {};
-    return h["x-tenant-id"] || h["X-Tenant-Id"];
-  }
-  return null;
-};
+const { tenantId } = authFromEvent(event)
 
 module.exports.main = async (event, context) => {
   const requestId = context?.awsRequestId || "local";
