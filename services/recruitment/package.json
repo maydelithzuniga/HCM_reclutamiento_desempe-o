@@ -19,7 +19,6 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "serverless": "^3.38.0",
-    "serverless-iam-roles-per-function": "^3.2.0",
     "serverless-offline": "^13.3.0"
   }
 }
