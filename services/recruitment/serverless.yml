@@ -36,10 +36,6 @@ functions:
           path: /vacancies
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:PutItem
-        Resource: !GetAtt RecruitmentTable.Arn
 
   listVacancies:
     handler: handlers/queries.listVacancies
@@ -48,10 +44,6 @@ functions:
           path: /vacancies
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:Query
-        Resource: !GetAtt RecruitmentTable.Arn
 
   getVacancy:
     handler: handlers/queries.getVacancy
@@ -60,13 +52,6 @@ functions:
           path: /vacancies/{vacancyId}
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:GetItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: dynamodb:Query
-        Resource: !Join ["/", [!GetAtt RecruitmentTable.Arn, "index", "GSI1"]]
 
   updateVacancy:
     handler: handlers/updateVacancy.main
@@ -75,12 +60,6 @@ functions:
           path: /vacancies/{vacancyId}
           method: patch
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt RecruitmentTable.Arn
 
   createCandidate:
     handler: handlers/createCandidate.main
@@ -89,13 +68,6 @@ functions:
           path: /candidates
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:PutItem
-          - dynamodb:ConditionCheckItem
-        Resource: !GetAtt RecruitmentTable.Arn
 
   listCandidates:
     handler: handlers/queries.listCandidates
@@ -104,12 +76,6 @@ functions:
           path: /candidates
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:Query
-        Resource:
-          - !GetAtt RecruitmentTable.Arn
-          - !Join ["/", [!GetAtt RecruitmentTable.Arn, "index", "GSI1"]]
 
   getCandidate:
     handler: handlers/queries.getCandidate
@@ -118,10 +84,6 @@ functions:
           path: /candidates/{candidateId}
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:GetItem
-        Resource: !GetAtt RecruitmentTable.Arn
 
   getDocumentUrl:
     handler: handlers/queries.getDocumentUrl
@@ -130,16 +92,6 @@ functions:
           path: /candidates/{candidateId}/documents/{docKey}
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:GetItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: s3:GetObject
-        Resource: ${self:custom.bucketArn}/*/recruitment/*
-      - Effect: Allow
-        Action: s3:ListBucket
-        Resource: ${self:custom.bucketArn}
 
   certificateUploadUrl:
     handler: handlers/createCandidate.uploadUrl
@@ -148,15 +100,6 @@ functions:
           path: /candidates/{candidateId}/certificates/{certKey}/upload-url
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: s3:PutObject
-        Resource: ${self:custom.bucketArn}/*/recruitment/certificates/*
 
   submitCandidate:
     handler: handlers/createCandidate.submit
@@ -165,21 +108,6 @@ functions:
           path: /candidates/{candidateId}/submit
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: s3:GetObject
-        Resource: ${self:custom.bucketArn}/*/recruitment/*
-      - Effect: Allow
-        Action: s3:ListBucket
-        Resource: ${self:custom.bucketArn}
-      - Effect: Allow
-        Action: sns:Publish
-        Resource: !Ref RecruitmentTopic
 
   uploadResumePresignedUrl:
     handler: handlers/uploadResumePresignedUrl.main
@@ -188,15 +116,6 @@ functions:
           path: /candidates/{candidateId}/resume/upload-url
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: s3:PutObject
-        Resource: ${self:custom.bucketArn}/*/recruitment/resumes/*.pdf
 
   updateStage:
     handler: handlers/updateStage.main
@@ -205,15 +124,6 @@ functions:
           path: /candidates/{candidateId}/stage
           method: patch
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt RecruitmentTable.Arn
-      - Effect: Allow
-        Action: sns:Publish
-        Resource: !Ref RecruitmentTopic
 
   notifyStageChange:
     handler: handlers/notifyStageChange.main
@@ -223,10 +133,6 @@ functions:
           arn: !GetAtt NotifyQueue.Arn
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
-    iamRoleStatements:
-      - Effect: Allow
-        Action: ses:SendEmail
-        Resource: "*"
 
 resources:
   Resources:
