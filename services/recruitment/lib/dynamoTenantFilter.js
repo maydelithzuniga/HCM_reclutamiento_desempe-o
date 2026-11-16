@@ -20,17 +20,39 @@ class TenantViolationError extends Error {
   }
 }
 
-const tenantFromEvent = (event) => {
-  const auth = event.requestContext?.authorizer || {};
-  const claims = auth.claims || auth.jwt?.claims || {};
-  const fromToken = claims["custom:tenant_id"];
-  if (fromToken) return fromToken;
-  if (process.env.IS_OFFLINE) {
-    const h = event.headers || {};
-    return h["x-tenant-id"] || h["X-Tenant-Id"] || null;
-  }
-  return null;
+const CTX = {
+  tenant: "tenant_id",
+  role: "role",
+  employee: "employee_id",
+  email: "email",
 };
+
+const authContext = (event) => {
+  const a = event?.requestContext?.authorizer || {};
+  return a.claims || a.jwt?.claims || a;
+};
+
+const authFromEvent = (event) => {
+  const c = authContext(event);
+  const out = {
+    tenantId: c[CTX.tenant] || null,
+    role: String(c[CTX.role] || "").toUpperCase(),
+    employeeId: c[CTX.employee] || null,
+    email: c[CTX.email] || null,
+  };
+
+  if (!out.tenantId && process.env.IS_OFFLINE) {
+    const h = Object.fromEntries(
+      Object.entries(event?.headers || {}).map(([k, v]) => [k.toLowerCase(), v])
+    );
+    out.tenantId = h["x-tenant-id"] || null;
+    out.role = String(h["x-role"] || "").toUpperCase();
+    out.employeeId = h["x-employee-id"] || null;
+  }
+  return out;
+};
+
+const tenantFromEvent = (event) => authFromEvent(event).tenantId;
 
 const createTenantDb = (tenantId, { client, table }) => {
   if (!client) throw new Error("createTenantDb: client es obligatorio");
@@ -251,4 +273,4 @@ const assertRequestTenant = (event, tenantId) => {
   return true;
 };
 
-module.exports = { createTenantDb, tenantFromEvent, assertRequestTenant, TenantViolationError };
+module.exports = { createTenantDb, tenantFromEvent, authFromEvent, assertRequestTenant, TenantViolationError };
