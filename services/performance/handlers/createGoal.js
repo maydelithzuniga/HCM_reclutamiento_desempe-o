@@ -187,8 +187,7 @@ module.exports.main = async (event, context) => {
     const nowIso = now.toISOString();
     const pk = `TENANT#${tenantId}`;
     const nextReminderAt = firstReminder ? firstReminder.toISOString() : null;
-    const assignedBy = event.requestContext?.authorizer?.claims?.email || event.requestContext?.authorizer?.jwt?.claims?.email || "system";
-
+    const assignedBy = authFromEvent(event).email || "system";
     const item = {
       PK: pk,
       SK: `GOAL#${employeeId}#${goalId}`,
