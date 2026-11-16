@@ -3,8 +3,7 @@ const { DynamoDBDocumentClient, PutCommand, QueryCommand, UpdateCommand } = requ
 const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
 const { SESv2Client, SendEmailCommand } = require("@aws-sdk/client-sesv2");
 const { randomUUID } = require("crypto");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
-
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 const sns = new SNSClient({});
 const ses = new SESv2Client({});
