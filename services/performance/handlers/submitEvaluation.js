@@ -2,8 +2,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, TransactWriteCommand } = require("@aws-sdk/lib-dynamodb");
 const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
 const { randomUUID } = require("crypto");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
-
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), { marshallOptions: { removeUndefinedValues: true } });
 const sns = new SNSClient({});
 const TABLE = process.env.PERFORMANCE_TABLE;
@@ -140,7 +139,7 @@ module.exports.main = async (event, context) => {
     const evalId = `e-${randomUUID()}`;
     const now = new Date().toISOString();
     const pk = `TENANT#${tenantId}`;
-    const submittedBy = event.requestContext?.authorizer?.claims?.email || event.requestContext?.authorizer?.jwt?.claims?.email || "system";
+    const submittedBy = authFromEvent(event).email || "system";
 
     const item = {
       PK: pk,
