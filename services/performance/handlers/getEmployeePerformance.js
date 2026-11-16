@@ -29,21 +29,7 @@ const res = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const getClaims = (event) => {
-  const auth = event.requestContext?.authorizer || {};
-  return auth.claims || auth.jwt?.claims || {};
-};
-
-const getTenantId = (event) => {
-  const fromToken = getClaims(event)["custom:tenant_id"];
-  if (fromToken) return fromToken;
-
-  if (process.env.IS_OFFLINE) {
-    const h = event.headers || {};
-    return h["x-tenant-id"] || h["X-Tenant-Id"];
-  }
-  return null;
-};
+const { tenantId, role, employeeId: myEmployeeId } = authFromEvent(event)
 
 const round2 = (n) => Math.round(n * 100) / 100;
 const mean = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
@@ -183,8 +169,7 @@ module.exports.main = async (event, context) => {
     }
 
     const claims = getClaims(event);
-    const role = String(claims["custom:role"] || "").toUpperCase();
-    const myEmployeeId = claims["custom:employee_id"];
+
     if (role === "EMPLOYEE" && myEmployeeId !== employeeId) {
       log("WARN", "Empleado intentando ver desempeño ajeno", { requestId, tenantId, employeeId, myEmployeeId });
       return res(403, { message: "Solo puedes ver tu propio desempeño" });
