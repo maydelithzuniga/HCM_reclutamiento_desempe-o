@@ -29,21 +29,7 @@ const res = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const getClaims = (event) => {
-  const auth = event.requestContext?.authorizer || {};
-  return auth.claims || auth.jwt?.claims || {};
-};
-
-const getTenantId = (event) => {
-  const fromToken = getClaims(event)["custom:tenant_id"];
-  if (fromToken) return fromToken;
-
-  if (process.env.IS_OFFLINE) {
-    const h = event.headers || {};
-    return h["x-tenant-id"] || h["X-Tenant-Id"];
-  }
-  return null;
-};
+const { tenantId, role, employeeId: myEmployeeId } = authFromEvent(event)
 
 const parseLocalDate = (s) => {
   if (typeof s !== "string" || !DATE_RE.test(s)) return null;
