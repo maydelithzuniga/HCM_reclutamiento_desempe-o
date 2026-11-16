@@ -1,6 +1,6 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, QueryCommand } = require("@aws-sdk/lib-dynamodb");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.PERFORMANCE_TABLE;
@@ -167,7 +167,7 @@ module.exports.main = async (event, context) => {
       return res(400, { message: "employeeId inválido" });
     }
 
-    const claims = getClaims(event);
+    const { role, employeeId: myEmployeeId } = authFromEvent(event);
 
     if (role === "EMPLOYEE" && myEmployeeId !== employeeId) {
       log("WARN", "Empleado intentando ver desempeño ajeno", { requestId, tenantId, employeeId, myEmployeeId });

@@ -116,9 +116,7 @@ module.exports.main = async (event, context) => {
     if (unknown.length) return res(400, { message: `Campos no permitidos: ${unknown.join(", ")}`, allowed: EDITABLE });
     if (!keys.length) return res(400, { message: "Envía al menos un campo a modificar", allowed: EDITABLE });
 
-    const claims = getClaims(event);
-    const role = String(claims["custom:role"] || "").toUpperCase();
-    const myEmployeeId = claims["custom:employee_id"];
+    const { role, employeeId: myEmployeeId } = authFromEvent(event);
     if (role === "EMPLOYEE") {
       if (myEmployeeId !== employeeId) {
         log("WARN", "Empleado intentando modificar meta ajena", { requestId, tenantId, employeeId, myEmployeeId });

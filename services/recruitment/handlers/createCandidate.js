@@ -4,7 +4,7 @@ const { S3Client, HeadObjectCommand } = require("@aws-sdk/client-s3");
 const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
 const { createPresignedPost } = require("@aws-sdk/s3-presigned-post");
 const { randomUUID } = require("crypto");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const s3 = new S3Client({});
@@ -40,7 +40,6 @@ const strip = (item) => {
   return rest;
 };
 
-const { tenantId } = authFromEvent(event)
 
 const parseBody = (event) => {
   try {
@@ -107,7 +106,7 @@ module.exports.main = async (event, context) => {
       return res(500, { message: "Error de configuración del servicio", requestId });
     }
 
-    tenantId = getTenantId(event);
+    tenantId = authFromEvent(event).tenantId;
     if (!tenantId) {
       log("WARN", "Tenant no identificado", { requestId });
       return res(401, { message: "Tenant no identificado" });
@@ -276,7 +275,7 @@ module.exports.uploadUrl = async (event, context) => {
       return res(500, { message: "Error de configuración del servicio", requestId });
     }
 
-    tenantId = getTenantId(event);
+    tenantId = authFromEvent(event).tenantId;
     if (!tenantId) {
       log("WARN", "Tenant no identificado", { requestId });
       return res(401, { message: "Tenant no identificado" });
@@ -356,7 +355,7 @@ module.exports.submit = async (event, context) => {
       return res(500, { message: "Error de configuración del servicio", requestId });
     }
 
-    tenantId = getTenantId(event);
+    tenantId = authFromEvent(event).tenantId;
     if (!tenantId) {
       log("WARN", "Tenant no identificado", { requestId });
       return res(401, { message: "Tenant no identificado" });

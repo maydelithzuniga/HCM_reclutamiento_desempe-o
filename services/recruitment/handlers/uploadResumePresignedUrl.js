@@ -2,7 +2,7 @@ const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const { S3Client } = require("@aws-sdk/client-s3");
 const { createPresignedPost } = require("@aws-sdk/s3-presigned-post");
-const { assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const s3 = new S3Client({});
@@ -27,7 +27,6 @@ const res = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const { tenantId } = authFromEvent(event)
 
 module.exports.main = async (event, context) => {
   const requestId = context?.awsRequestId || "local";
@@ -39,7 +38,7 @@ module.exports.main = async (event, context) => {
       return res(500, { message: "Error de configuración del servicio", requestId });
     }
 
-    tenantId = getTenantId(event);
+    tenantId = authFromEvent(event).tenantId;
     if (!tenantId) {
       log("WARN", "Tenant no identificado", { requestId });
       return res(401, { message: "Tenant no identificado" });
