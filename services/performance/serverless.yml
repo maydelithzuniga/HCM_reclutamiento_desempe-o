@@ -7,6 +7,11 @@ plugins:
 
 custom:
   senderEmail: ${param:senderEmail, 'tu-correo-verificado@gmail.com'}
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:${param:authorizerFn, 'hcm-auth-dev-authorizer'}
+    type: request          # "token" si tu authorizer es de tipo TOKEN
+    identitySource: method.request.header.Authorization
+    resultTtlInSeconds: 300
 
 package:
   patterns:
