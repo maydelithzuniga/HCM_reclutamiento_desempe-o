@@ -29,7 +29,6 @@ const res = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const { tenantId, role, employeeId: myEmployeeId } = authFromEvent(event)
 
 const parseLocalDate = (s) => {
   if (typeof s !== "string" || !DATE_RE.test(s)) return null;
@@ -85,7 +84,7 @@ module.exports.main = async (event, context) => {
       return res(500, { message: "Error de configuración del servicio", requestId });
     }
 
-    tenantId = getTenantId(event);
+    tenantId = authFromEvent(event).tenantId;
     if (!tenantId) {
       log("WARN", "Tenant no identificado", { requestId });
       return res(401, { message: "Tenant no identificado" });
