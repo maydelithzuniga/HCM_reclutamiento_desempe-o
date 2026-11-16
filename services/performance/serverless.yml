@@ -34,13 +34,6 @@ functions:
           path: /goals
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:PutItem
-        Resource: !GetAtt PerformanceTable.Arn
-      - Effect: Allow
-        Action: sns:Publish
-        Resource: !Ref PerformanceTopic
 
   updateGoal:
     handler: handlers/updateGoal.main
@@ -49,12 +42,6 @@ functions:
           path: /goals/{employeeId}/{goalId}
           method: patch
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:GetItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt PerformanceTable.Arn
 
   dispatchGoalReminders:
     handler: handlers/createGoal.dispatchReminders
@@ -63,16 +50,6 @@ functions:
       - schedule:
           rate: rate(1 hour)
           enabled: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:Query
-        Resource: !Join ["/", [!GetAtt PerformanceTable.Arn, "index", "GSI1"]]
-      - Effect: Allow
-        Action: dynamodb:UpdateItem
-        Resource: !GetAtt PerformanceTable.Arn
-      - Effect: Allow
-        Action: sns:Publish
-        Resource: !Ref PerformanceTopic
 
   notifyGoal:
     handler: handlers/createGoal.notify
@@ -82,10 +59,6 @@ functions:
           arn: !GetAtt GoalNotifyQueue.Arn
           batchSize: 10
           functionResponseType: ReportBatchItemFailures
-    iamRoleStatements:
-      - Effect: Allow
-        Action: ses:SendEmail
-        Resource: "*"
 
   submitEvaluation:
     handler: handlers/submitEvaluation.main
@@ -94,15 +67,6 @@ functions:
           path: /evaluations
           method: post
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - dynamodb:PutItem
-          - dynamodb:UpdateItem
-        Resource: !GetAtt PerformanceTable.Arn
-      - Effect: Allow
-        Action: sns:Publish
-        Resource: !Ref PerformanceTopic
 
   getEmployeePerformance:
     handler: handlers/getEmployeePerformance.main
@@ -111,10 +75,6 @@ functions:
           path: /evaluations/employee/{employeeId}
           method: get
           cors: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action: dynamodb:Query
-        Resource: !GetAtt PerformanceTable.Arn
 
 resources:
   Resources:
