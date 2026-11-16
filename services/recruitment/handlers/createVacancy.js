@@ -1,7 +1,7 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient } = require("@aws-sdk/lib-dynamodb");
 const { randomUUID } = require("crypto");
-const { createTenantDb, assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { createTenantDb, assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.RECRUITMENT_TABLE;
@@ -137,7 +137,7 @@ module.exports.main = async (event, context) => {
       requiredCertificates: certificates,
       status: "OPEN",
       candidatesCount: 0,
-      createdBy: event.requestContext?.authorizer?.claims?.email || "system",
+      createdBy: authFromEvent(event).email || "system",
       createdAt: now,
       updatedAt: now,
     };
