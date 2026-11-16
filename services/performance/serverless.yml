@@ -14,6 +14,8 @@ package:
 
 provider:
   name: aws
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
   runtime: nodejs20.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
