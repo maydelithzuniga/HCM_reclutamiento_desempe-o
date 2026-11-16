@@ -1,6 +1,6 @@
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient } = require("@aws-sdk/lib-dynamodb");
-const { createTenantDb, assertRequestTenant, TenantViolationError } = require("../lib/dynamoTenantFilter");
+const { createTenantDb, assertRequestTenant, TenantViolationError, authFromEvent } = require("../lib/dynamoTenantFilter");
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.RECRUITMENT_TABLE;
@@ -136,7 +136,7 @@ module.exports.main = async (event, context) => {
       return res(400, { message: "salaryMin no puede ser mayor que salaryMax" });
 
     const now = new Date().toISOString();
-    const by = event.requestContext?.authorizer?.claims?.email || event.requestContext?.authorizer?.jwt?.claims?.email || "system";
+    const by = authFromEvent(event).email || "system";
 
     const sets = ["updatedAt = :now", "updatedBy = :by"];
     const removes = [];
